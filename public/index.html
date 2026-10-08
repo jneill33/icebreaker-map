@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Icebreaker Map</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <main class="wrap">
+    <h1>Icebreaker Map</h1>
+    <p class="muted">Show a QR code. Everyone scans it, says hi, and appears on a shared map, at city-level accuracy only.</p>
+
+    <form id="create" class="card">
+      <label for="question">Icebreaker question</label>
+      <input id="question" type="text" maxlength="140" autocomplete="off"
+             placeholder="Where's home, and what do you love about it?">
+      <button class="block" type="submit">Start a session</button>
+      <p id="status" class="status" role="status"></p>
+    </form>
+  </main>
+  <script src="/index.js"></script>
+</body>
+</html>

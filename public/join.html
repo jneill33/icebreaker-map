@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Join the map</title>
+  <link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <main class="wrap">
+    <section id="join-view">
+      <h1>Say hi 👋</h1>
+      <p id="question" class="muted"></p>
+
+      <form id="join" class="card">
+        <label for="name">Your name</label>
+        <input id="name" type="text" maxlength="40" autocomplete="given-name" required>
+
+        <label id="answer-label" for="answer">Your answer</label>
+        <input id="answer" type="text" maxlength="140" autocomplete="off">
+
+        <p class="consent">
+          Tapping the button asks your phone for your location. We round it to about
+          10&nbsp;km (city level) before saving it, so your exact position is never stored.
+          It is deleted when the host ends the session, or after 12 hours.
+        </p>
+
+        <button class="block" type="submit">Share my location &amp; join</button>
+        <p id="status" class="status" role="status"></p>
+      </form>
+    </section>
+
+    <section id="done-view" hidden>
+      <h1>You're on the map 🎉</h1>
+      <p class="muted"><span id="count">0</span> here so far. Tap a pin to see who it is.</p>
+      <div id="map" class="map map-small"></div>
+      <p><button id="leave" class="secondary" type="button">Remove me from the map</button></p>
+      <p id="done-status" class="status" role="status"></p>
+    </section>
+  </main>
+  <script src="/vendor/leaflet/leaflet.js"></script>
+  <script src="/map.js"></script>
+  <script src="/join.js"></script>
+</body>
+</html>

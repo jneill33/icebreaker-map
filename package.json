@@ -1,0 +1,21 @@
+{
+  "name": "icebreaker-map",
+  "version": "1.0.0",
+  "description": "Icebreaker app: participants scan a QR code and appear on a shared map at city-level accuracy.",
+  "private": true,
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "express": "^5.2.1",
+    "leaflet": "^1.9.4",
+    "qrcode": "^1.5.4"
+  }
+}
