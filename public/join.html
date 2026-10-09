@@ -11,7 +11,6 @@
   <main class="wrap">
     <section id="join-view">
       <h1>Say hi 👋</h1>
-      <p id="question" class="muted"></p>
 
       <form id="join" class="card">
         <label for="name">Your name</label>
@@ -20,27 +19,18 @@
         <label id="answer-label" for="answer">Your answer</label>
         <input id="answer" type="text" maxlength="140" autocomplete="off">
 
+        <label for="zip">Your ZIP code</label>
+        <input id="zip" type="text" inputmode="numeric" pattern="[0-9]{5}(-[0-9]{4})?"
+               maxlength="10" autocomplete="postal-code" placeholder="e.g. 78701" required>
+
         <p class="consent">
-          Tapping the button asks your phone for your location. We round it to about
-          10&nbsp;km (city level) before saving it, so your exact position is never stored.
-          It is deleted when the host ends the session, or after 12 hours.
+          We use your ZIP only to place a pin on the map. It isn't saved, and the pin is
+          rounded to about 10&nbsp;km (city level). Everything is deleted when the host
+          ends the session, or after 12 hours.
         </p>
 
-        <button class="block" type="submit">Share my location &amp; join</button>
+        <button class="block" type="submit">Put me on the map</button>
         <p id="status" class="status" role="status"></p>
-
-        <button id="show-manual" class="linklike" type="button">Can't or won't share location? Choose your city instead</button>
-
-        <div id="manual" hidden>
-          <label for="city">Your city</label>
-          <div class="row">
-            <input id="city" type="text" maxlength="80" autocomplete="off" placeholder="e.g. Austin">
-            <button id="city-search" class="secondary" type="button">Search</button>
-          </div>
-          <p class="muted">Pick a result to join. Only the city's location is used.</p>
-          <ul id="city-results" class="results"></ul>
-          <p id="city-status" class="status" role="status"></p>
-        </div>
       </form>
     </section>
 

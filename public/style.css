@@ -108,19 +108,3 @@ button.block { width: 100%; margin-top: 18px; }
   .host { grid-template-columns: 1fr; height: auto; }
   .host .map { height: 60vh; }
 }
-
-button.linklike {
-  display: block;
-  margin: 14px auto 0;
-  padding: 6px;
-  background: none;
-  color: var(--accent);
-  font-weight: 500;
-  font-size: 0.92rem;
-  text-decoration: underline;
-}
-
-#manual { margin-top: 8px; }
-#manual .row input { flex: 1; min-width: 0; }
-.results { list-style: none; margin: 0; padding: 0; }
-.results button { width: 100%; margin-top: 8px; text-align: left; background: #ecedfb; color: var(--ink); font-weight: 500; }

@@ -6,14 +6,14 @@ answer to the host's question, and appear on a shared live map.
 ## How it works
 
 - **Host** (`/`): create a session, then show `host.html`: a QR code, the join link, a live map and a list of who has joined.
-- **Participant** (`join.html?s=<id>`): enter a name and answer, allow location, and see everyone on the map.
+- **Participant** (`join.html?s=<id>`): enter a name, an answer and a US ZIP code, then see everyone on the map. No device-location permission is needed.
 - **Live updates** use Server-Sent Events, so the host map updates as people join or leave.
 - **Map**: [Leaflet](https://leafletjs.com) with OpenStreetMap tiles (no API key).
 
 ## Privacy
 
-- Locations are **rounded to 1 decimal degree (about 11 km, city level) on the server**. Exact coordinates are never stored or sent to other participants.
-- Participants consent on the join page and can remove their own pin at any time.
+- The server looks up the ZIP code (via [Zippopotam.us](https://api.zippopotam.us), no API key) and **rounds the result to 1 decimal degree (about 11 km, city level)**. The ZIP itself is never stored, and exact coordinates are never sent to other participants.
+- Participants see a consent note on the join page and can remove their own pin at any time.
 - Data lives in memory only. It is deleted when the host ends the session, after `SESSION_TTL_HOURS` (default 12), or when the server restarts.
 
 ## Run it
@@ -24,10 +24,9 @@ npm start          # http://localhost:3000
 npm test
 ```
 
-Phone geolocation only works over **HTTPS** (localhost is the only exception), and the QR
-code must point at an address phones can reach. For real use:
+The QR code must point at an address phones can reach. For real use:
 
-- Deploy anywhere that runs Node (Render, Fly.io, Railway, ...) and set `PUBLIC_URL` to the public https URL, or
+- Deploy anywhere that runs Node (Render, Fly.io, Railway, ...) and set `PUBLIC_URL` to the public URL, or
 - Test locally through a tunnel, for example `cloudflared tunnel --url http://localhost:3000`, then run with `PUBLIC_URL=https://<tunnel-host> npm start`.
 
 ## Configuration
@@ -41,5 +40,5 @@ code must point at an address phones can reach. For real use:
 ## Limits
 
 Up to 300 participants per session; names are capped at 40 characters and answers at
-140. Session creation and joining are rate limited per IP. Sessions are held in one
+140. Session creation and joining are rate limited per IP. Only US ZIP codes are supported. Sessions are held in one
 process's memory, so run a single instance.

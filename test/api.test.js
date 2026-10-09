@@ -4,14 +4,21 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createApp, roundCoord } = require('../app');
 
+const ZIPS = {
+  '78701': { lat: 30.2672, lng: -97.7431, label: 'Austin, TX' },
+  '10001': { lat: 40.7506, lng: -73.9972, label: 'New York, NY' },
+};
+
 let server, base, ctx;
+let lookups = 0;
 
 test.before(async () => {
   ctx = createApp({
     publicUrl: 'https://example.test',
-    geocode: async (q) => {
-      if (q === 'boom') throw new Error('upstream down');
-      return [{ label: `${q}, Testland`, lat: 30.2672, lng: -97.7431 }];
+    lookupZip: async (zip) => {
+      lookups++;
+      if (zip === '99999') throw new Error('upstream down');
+      return ZIPS[zip] || null;
     },
   });
   await new Promise((resolve) => { server = ctx.app.listen(0, resolve); });
@@ -34,6 +41,8 @@ async function newSession(question) {
   return res.json();
 }
 
+const join = (id, body) => post(`/api/sessions/${id}/join`, body);
+
 test('roundCoord rounds to 1 decimal and never returns -0', () => {
   assert.equal(roundCoord(40.7128), 40.7);
   assert.equal(roundCoord(-74.006), -74);
@@ -47,42 +56,69 @@ test('create session returns a join URL based on PUBLIC_URL', async () => {
   assert.ok(s.hostToken.length >= 16);
 });
 
-test('join stores only city-level coordinates and never leaks the key', async () => {
+test('join looks up the ZIP, stores only rounded coordinates, and never stores the ZIP', async () => {
   const s = await newSession('Where from?');
-  const res = await post(`/api/sessions/${s.id}/join`, {
-    name: '  Ada  ', answer: 'London', lat: 51.50735, lng: -0.12776,
-  });
+  const res = await join(s.id, { name: '  Ada  ', answer: 'Austin', zip: '78701' });
   assert.equal(res.status, 201);
   const me = await res.json();
-  assert.equal(me.lat, 51.5);
-  assert.equal(me.lng, -0.1);
+  assert.equal(me.place, 'Austin, TX');
 
   const stored = [...ctx.sessions.get(s.id).participants.values()][0];
   assert.equal(stored.name, 'Ada');
-  assert.equal(stored.lat, 51.5);
+  assert.equal(stored.lat, 30.3);
+  assert.equal(stored.lng, -97.7);
+  assert.equal(JSON.stringify(stored).includes('78701'), false);
 
   const info = await (await fetch(`${base}/api/sessions/${s.id}`)).json();
   assert.equal(info.count, 1);
   assert.equal(JSON.stringify(info).includes(me.key), false);
 });
 
-test('join rejects missing names and bad coordinates', async () => {
+test('join accepts ZIP+4 and ignores client-supplied coordinates', async () => {
   const s = await newSession();
-  const url = `/api/sessions/${s.id}/join`;
-  assert.equal((await post(url, { name: '', lat: 1, lng: 1 })).status, 400);
-  assert.equal((await post(url, { name: 'x', lat: 91, lng: 1 })).status, 400);
-  assert.equal((await post(url, { name: 'x', lat: '1', lng: 1 })).status, 400);
-  assert.equal((await post(url, { name: 'x', lat: 1 })).status, 400);
+  const res = await join(s.id, { name: 'Bo', zip: '10001-1234', lat: 0, lng: 0 });
+  assert.equal(res.status, 201);
+  const stored = [...ctx.sessions.get(s.id).participants.values()][0];
+  assert.equal(stored.lat, 40.8);
+  assert.equal(stored.lng, -74);
+});
+
+test('join rejects missing names and malformed ZIPs without calling the lookup', async () => {
+  const s = await newSession();
+  const before = lookups;
+  assert.equal((await join(s.id, { name: '', zip: '78701' })).status, 400);
+  assert.equal((await join(s.id, { name: 'x' })).status, 400);
+  assert.equal((await join(s.id, { name: 'x', zip: '7870' })).status, 400);
+  assert.equal((await join(s.id, { name: 'x', zip: 'abcde' })).status, 400);
+  assert.equal((await join(s.id, { name: 'x', zip: '78701; DROP' })).status, 400);
+  assert.equal(lookups, before);
+});
+
+test('unknown ZIP is a 400 and an upstream failure is a 502', async () => {
+  const s = await newSession();
+  const unknown = await join(s.id, { name: 'x', zip: '00000' });
+  assert.equal(unknown.status, 400);
+  assert.match((await unknown.json()).error, /couldn't find/);
+  assert.equal((await join(s.id, { name: 'x', zip: '99999' })).status, 502);
+  assert.equal(ctx.sessions.get(s.id).participants.size, 0);
+});
+
+test('ZIP lookups are cached', async () => {
+  const s = await newSession();
+  await join(s.id, { name: 'a', zip: '10001' });
+  const before = lookups;
+  await join(s.id, { name: 'b', zip: '10001' });
+  assert.equal(lookups, before);
 });
 
 test('unknown sessions return 404', async () => {
   assert.equal((await fetch(`${base}/api/sessions/nope`)).status, 404);
-  assert.equal((await post('/api/sessions/nope/join', { name: 'x', lat: 1, lng: 1 })).status, 404);
+  assert.equal((await join('nope', { name: 'x', zip: '78701' })).status, 404);
 });
 
 test('participants can only be removed with their own key', async () => {
   const s = await newSession();
-  const me = await (await post(`/api/sessions/${s.id}/join`, { name: 'Bo', lat: 1, lng: 1 })).json();
+  const me = await (await join(s.id, { name: 'Bo', zip: '78701' })).json();
   const url = `${base}/api/sessions/${s.id}/participants/${me.id}`;
   assert.equal((await fetch(url, { method: 'DELETE', headers: { 'x-participant-key': 'wrong' } })).status, 403);
   assert.equal((await fetch(url, { method: 'DELETE', headers: { 'x-participant-key': me.key } })).status, 204);
@@ -124,16 +160,17 @@ test('event stream sends a snapshot, then join events', async () => {
   };
 
   await readUntil('event: snapshot');
-  await post(`/api/sessions/${s.id}/join`, { name: 'Cy', answer: 'Tea', lat: 35.68, lng: 139.69 });
+  await join(s.id, { name: 'Cy', answer: 'Tea', zip: '10001' });
   await readUntil('event: join');
   assert.ok(text.includes('"name":"Cy"'));
   assert.equal(text.includes('"key"'), false);
+  assert.equal(text.includes('10001'), false);
   await reader.cancel();
 });
 
 test('expired sessions are swept and their data is deleted', async () => {
   const s = await newSession();
-  await post(`/api/sessions/${s.id}/join`, { name: 'Di', lat: 1, lng: 1 });
+  await join(s.id, { name: 'Di', zip: '78701' });
   ctx.sessions.get(s.id).expiresAt = Date.now() - 1;
   ctx.sweepExpired();
   assert.equal(ctx.sessions.has(s.id), false);
@@ -143,19 +180,4 @@ test('expired sessions are swept and their data is deleted', async () => {
 test('referrer policy lets OSM tile servers see our origin', async () => {
   const res = await fetch(`${base}/`);
   assert.equal(res.headers.get('referrer-policy'), 'strict-origin-when-cross-origin');
-});
-
-test('geocode returns city matches and validates input', async () => {
-  const ok = await (await fetch(`${base}/api/geocode?q=Austin`)).json();
-  assert.equal(ok.results[0].label, 'Austin, Testland');
-  assert.equal((await fetch(`${base}/api/geocode?q=a`)).status, 400);
-  assert.equal((await fetch(`${base}/api/geocode`)).status, 400);
-  assert.equal((await fetch(`${base}/api/geocode?q=boom`)).status, 502);
-});
-
-test('a city-search location is rounded like any other', async () => {
-  const s = await newSession();
-  const me = await (await post(`/api/sessions/${s.id}/join`, { name: 'Ed', lat: 30.2672, lng: -97.7431 })).json();
-  assert.equal(me.lat, 30.3);
-  assert.equal(me.lng, -97.7);
 });

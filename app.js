@@ -35,25 +35,23 @@ function rateLimit(max, windowMs) {
   };
 }
 
-// City search via Open-Meteo's free geocoding API (no key). Called from the server so
-// the participant's IP and typing never reach a third party.
-async function openMeteoGeocode(query) {
-  const url = new URL('https://geocoding-api.open-meteo.com/v1/search');
-  url.search = new URLSearchParams({ name: query, count: '6', language: 'en', format: 'json' });
-  const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
-  if (!res.ok) throw new Error(`geocoder ${res.status}`);
-  const data = await res.json();
-  return (data.results || []).map((r) => ({
-    label: [r.name, r.admin1, r.country].filter(Boolean).join(', '),
-    lat: r.latitude,
-    lng: r.longitude,
-  }));
+// ZIP -> coordinates via Zippopotam.us (free, no API key). Called from the server so
+// participants' devices never contact a third party. Returns null for unknown ZIPs.
+async function zippopotamLookup(zip) {
+  const res = await fetch(`https://api.zippopotam.us/us/${zip}`, { signal: AbortSignal.timeout(5000) });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`zip lookup ${res.status}`);
+  const place = (await res.json()).places?.[0];
+  const lat = Number(place?.latitude);
+  const lng = Number(place?.longitude);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  return { lat, lng, label: `${place['place name']}, ${place['state abbreviation']}` };
 }
 
 function createApp({
   ttlMs = 12 * 60 * 60 * 1000,
   publicUrl = process.env.PUBLIC_URL,
-  geocode = openMeteoGeocode,
+  lookupZip = zippopotamLookup,
 } = {}) {
   const app = express();
   app.set('trust proxy', 1);
@@ -112,8 +110,8 @@ function createApp({
       'X-Content-Type-Options': 'nosniff',
       // OSM's tile servers reject requests with no Referer, so send our origin.
       'Referrer-Policy': 'strict-origin-when-cross-origin',
-      // Geolocation is needed on our own pages only.
-      'Permissions-Policy': 'geolocation=(self)',
+      // The app never uses device location.
+      'Permissions-Policy': 'geolocation=()',
     });
     next();
   });
@@ -154,23 +152,6 @@ function createApp({
     });
   });
 
-  // Fallback for people who can't or won't share device location: search for a city.
-  const geocodeCache = new Map();
-  app.get('/api/geocode', rateLimit(30, 60 * 1000), async (req, res) => {
-    const q = clean(req.query.q, 80);
-    if (q.length < 2) return res.status(400).json({ error: 'Type at least 2 characters.' });
-    const key = q.toLowerCase();
-    if (!geocodeCache.has(key)) {
-      try {
-        geocodeCache.set(key, await geocode(q));
-      } catch (_) {
-        return res.status(502).json({ error: 'City search is unavailable right now.' });
-      }
-      if (geocodeCache.size > 500) geocodeCache.delete(geocodeCache.keys().next().value);
-    }
-    res.json({ results: geocodeCache.get(key) });
-  });
-
   app.get('/api/sessions/:id/qr.svg', getSession, async (req, res) => {
     const svg = await QRCode.toString(joinUrl(req, req.session.id), {
       type: 'svg', margin: 1, errorCorrectionLevel: 'M',
@@ -178,25 +159,40 @@ function createApp({
     res.type('image/svg+xml').set('Cache-Control', 'no-store').send(svg);
   });
 
-  app.post('/api/sessions/:id/join', rateLimit(60, 60 * 1000), getSession, (req, res) => {
+  // Rooms often share one venue IP (NAT), so keep this limit generous.
+  const zipCache = new Map();
+  app.post('/api/sessions/:id/join', rateLimit(300, 60 * 1000), getSession, async (req, res) => {
     const s = req.session;
-    const { name, answer, lat, lng } = req.body ?? {};
+    const { name, answer, zip } = req.body ?? {};
     const cleanName = clean(name, 40);
     if (!cleanName) return res.status(400).json({ error: 'Please enter a name.' });
-    const valid = (v, lim) => typeof v === 'number' && Number.isFinite(v) && Math.abs(v) <= lim;
-    if (!valid(lat, 90) || !valid(lng, 180)) {
-      return res.status(400).json({ error: 'A valid location is required.' });
+    const zipMatch = clean(zip, 10).match(/^(\d{5})(?:-\d{4})?$/);
+    if (!zipMatch) return res.status(400).json({ error: 'Enter a 5-digit US ZIP code.' });
+    const code = zipMatch[1];
+
+    if (!zipCache.has(code)) {
+      try {
+        zipCache.set(code, await lookupZip(code));
+      } catch (_) {
+        return res.status(502).json({ error: 'ZIP lookup is unavailable right now. Try again in a moment.' });
+      }
+      if (zipCache.size > 2000) zipCache.delete(zipCache.keys().next().value);
     }
+    const place = zipCache.get(code);
+    if (!place) return res.status(400).json({ error: "We couldn't find that ZIP code." });
+
+    if (!sessions.has(s.id)) return res.status(404).json({ error: 'Session not found or expired.' });
     if (s.participants.size >= MAX_PARTICIPANTS) {
       return res.status(409).json({ error: 'This session is full.' });
     }
+    // The ZIP itself is never stored; only the rounded, city-level coordinates are.
     const p = {
       id: randomId(6), key: randomId(12), name: cleanName, answer: clean(answer, 140),
-      lat: roundCoord(lat), lng: roundCoord(lng),
+      lat: roundCoord(place.lat), lng: roundCoord(place.lng),
     };
     s.participants.set(p.id, p);
     broadcast(s, 'join', publicParticipant(p));
-    res.status(201).json({ id: p.id, key: p.key, lat: p.lat, lng: p.lng });
+    res.status(201).json({ id: p.id, key: p.key, place: place.label });
   });
 
   app.delete('/api/sessions/:id/participants/:pid', getSession, (req, res) => {
