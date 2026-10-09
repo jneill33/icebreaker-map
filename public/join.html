@@ -28,6 +28,19 @@
 
         <button class="block" type="submit">Share my location &amp; join</button>
         <p id="status" class="status" role="status"></p>
+
+        <button id="show-manual" class="linklike" type="button">Can't or won't share location? Choose your city instead</button>
+
+        <div id="manual" hidden>
+          <label for="city">Your city</label>
+          <div class="row">
+            <input id="city" type="text" maxlength="80" autocomplete="off" placeholder="e.g. Austin">
+            <button id="city-search" class="secondary" type="button">Search</button>
+          </div>
+          <p class="muted">Pick a result to join. Only the city's location is used.</p>
+          <ul id="city-results" class="results"></ul>
+          <p id="city-status" class="status" role="status"></p>
+        </div>
       </form>
     </section>
 

@@ -58,24 +58,18 @@ async function init() {
   try { me = JSON.parse(localStorage.getItem(storeKey)); } catch (_) { me = null; }
   if (me) return showMap();
 
-  $('join').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const button = e.currentTarget.querySelector('button');
-    const status = $('status');
-    button.disabled = true;
+  const showManual = () => { $('manual').hidden = false; $('show-manual').hidden = true; };
+  $('show-manual').addEventListener('click', showManual);
+
+  async function joinWith(lat, lng, statusEl) {
+    const buttons = $('join').querySelectorAll('button');
+    buttons.forEach((b) => { b.disabled = true; });
     try {
-      setStatus(status, 'Finding your location...');
-      const pos = await geolocate();
-      setStatus(status, 'Joining...');
+      setStatus(statusEl, 'Joining...');
       const r = await fetch(api('/join'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: $('name').value,
-          answer: $('answer').value,
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude,
-        }),
+        body: JSON.stringify({ name: $('name').value, answer: $('answer').value, lat, lng }),
       });
       const body = await r.json();
       if (!r.ok) throw new Error(body.error || 'Could not join.');
@@ -83,9 +77,57 @@ async function init() {
       localStorage.setItem(storeKey, JSON.stringify(me));
       showMap();
     } catch (err) {
-      setStatus(status, err.message, 'error');
-      button.disabled = false;
+      setStatus(statusEl, err.message, 'error');
+      buttons.forEach((b) => { b.disabled = false; });
     }
+  }
+
+  // Primary path: device location. If it fails for any reason, offer the city picker.
+  $('join').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const status = $('status');
+    try {
+      setStatus(status, 'Finding your location...');
+      const pos = await geolocate();
+      await joinWith(pos.coords.latitude, pos.coords.longitude, status);
+    } catch (err) {
+      setStatus(status, `${err.message} You can choose your city below instead.`, 'error');
+      showManual();
+      $('city').focus();
+    }
+  });
+
+  // Fallback path: search for a city, then pick a result.
+  async function searchCity() {
+    const status = $('city-status');
+    const list = $('city-results');
+    list.replaceChildren();
+    if (!$('name').reportValidity()) return;
+    const q = $('city').value.trim();
+    if (q.length < 2) return setStatus(status, 'Type at least 2 characters.', 'error');
+    setStatus(status, 'Searching...');
+    try {
+      const r = await fetch(`/api/geocode?q=${encodeURIComponent(q)}`);
+      const body = await r.json();
+      if (!r.ok) throw new Error(body.error || 'Search failed.');
+      if (body.results.length === 0) return setStatus(status, 'No matches. Try a nearby larger city.', 'error');
+      setStatus(status, '');
+      for (const place of body.results) {
+        const li = document.createElement('li');
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = place.label;
+        b.addEventListener('click', () => joinWith(place.lat, place.lng, status));
+        li.appendChild(b);
+        list.appendChild(li);
+      }
+    } catch (err) {
+      setStatus(status, err.message, 'error');
+    }
+  }
+  $('city-search').addEventListener('click', searchCity);
+  $('city').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); searchCity(); }
   });
 }
 

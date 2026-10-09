@@ -7,7 +7,13 @@ const { createApp, roundCoord } = require('../app');
 let server, base, ctx;
 
 test.before(async () => {
-  ctx = createApp({ publicUrl: 'https://example.test' });
+  ctx = createApp({
+    publicUrl: 'https://example.test',
+    geocode: async (q) => {
+      if (q === 'boom') throw new Error('upstream down');
+      return [{ label: `${q}, Testland`, lat: 30.2672, lng: -97.7431 }];
+    },
+  });
   await new Promise((resolve) => { server = ctx.app.listen(0, resolve); });
   base = `http://127.0.0.1:${server.address().port}`;
 });
@@ -132,4 +138,24 @@ test('expired sessions are swept and their data is deleted', async () => {
   ctx.sweepExpired();
   assert.equal(ctx.sessions.has(s.id), false);
   assert.equal((await fetch(`${base}/api/sessions/${s.id}`)).status, 404);
+});
+
+test('referrer policy lets OSM tile servers see our origin', async () => {
+  const res = await fetch(`${base}/`);
+  assert.equal(res.headers.get('referrer-policy'), 'strict-origin-when-cross-origin');
+});
+
+test('geocode returns city matches and validates input', async () => {
+  const ok = await (await fetch(`${base}/api/geocode?q=Austin`)).json();
+  assert.equal(ok.results[0].label, 'Austin, Testland');
+  assert.equal((await fetch(`${base}/api/geocode?q=a`)).status, 400);
+  assert.equal((await fetch(`${base}/api/geocode`)).status, 400);
+  assert.equal((await fetch(`${base}/api/geocode?q=boom`)).status, 502);
+});
+
+test('a city-search location is rounded like any other', async () => {
+  const s = await newSession();
+  const me = await (await post(`/api/sessions/${s.id}/join`, { name: 'Ed', lat: 30.2672, lng: -97.7431 })).json();
+  assert.equal(me.lat, 30.3);
+  assert.equal(me.lng, -97.7);
 });

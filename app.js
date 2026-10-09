@@ -35,7 +35,26 @@ function rateLimit(max, windowMs) {
   };
 }
 
-function createApp({ ttlMs = 12 * 60 * 60 * 1000, publicUrl = process.env.PUBLIC_URL } = {}) {
+// City search via Open-Meteo's free geocoding API (no key). Called from the server so
+// the participant's IP and typing never reach a third party.
+async function openMeteoGeocode(query) {
+  const url = new URL('https://geocoding-api.open-meteo.com/v1/search');
+  url.search = new URLSearchParams({ name: query, count: '6', language: 'en', format: 'json' });
+  const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
+  if (!res.ok) throw new Error(`geocoder ${res.status}`);
+  const data = await res.json();
+  return (data.results || []).map((r) => ({
+    label: [r.name, r.admin1, r.country].filter(Boolean).join(', '),
+    lat: r.latitude,
+    lng: r.longitude,
+  }));
+}
+
+function createApp({
+  ttlMs = 12 * 60 * 60 * 1000,
+  publicUrl = process.env.PUBLIC_URL,
+  geocode = openMeteoGeocode,
+} = {}) {
   const app = express();
   app.set('trust proxy', 1);
   app.disable('x-powered-by');
@@ -91,7 +110,8 @@ function createApp({ ttlMs = 12 * 60 * 60 * 1000, publicUrl = process.env.PUBLIC
         "frame-ancestors 'none'",
       ].join('; '),
       'X-Content-Type-Options': 'nosniff',
-      'Referrer-Policy': 'same-origin',
+      // OSM's tile servers reject requests with no Referer, so send our origin.
+      'Referrer-Policy': 'strict-origin-when-cross-origin',
       // Geolocation is needed on our own pages only.
       'Permissions-Policy': 'geolocation=(self)',
     });
@@ -132,6 +152,23 @@ function createApp({ ttlMs = 12 * 60 * 60 * 1000, publicUrl = process.env.PUBLIC
       id: s.id, question: s.question, count: s.participants.size,
       expiresAt: s.expiresAt, joinUrl: joinUrl(req, s.id),
     });
+  });
+
+  // Fallback for people who can't or won't share device location: search for a city.
+  const geocodeCache = new Map();
+  app.get('/api/geocode', rateLimit(30, 60 * 1000), async (req, res) => {
+    const q = clean(req.query.q, 80);
+    if (q.length < 2) return res.status(400).json({ error: 'Type at least 2 characters.' });
+    const key = q.toLowerCase();
+    if (!geocodeCache.has(key)) {
+      try {
+        geocodeCache.set(key, await geocode(q));
+      } catch (_) {
+        return res.status(502).json({ error: 'City search is unavailable right now.' });
+      }
+      if (geocodeCache.size > 500) geocodeCache.delete(geocodeCache.keys().next().value);
+    }
+    res.json({ results: geocodeCache.get(key) });
   });
 
   app.get('/api/sessions/:id/qr.svg', getSession, async (req, res) => {
