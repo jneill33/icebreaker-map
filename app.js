@@ -6,7 +6,7 @@ const express = require('express');
 const QRCode = require('qrcode');
 
 const MAX_PARTICIPANTS = 300;
-const DEFAULT_QUESTION = "Where's home, and what do you love about it?";
+const DEFAULT_QUESTION = "What's your favorite food?";
 
 const clean = (value, max) =>
   String(value ?? '').replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, max);

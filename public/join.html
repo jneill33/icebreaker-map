@@ -3,45 +3,65 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#6366f1">
   <title>Join the map</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-  <main class="wrap">
+  <header class="topbar">
+    <span class="brand"><img src="/logo.svg" alt="" width="32" height="32"><span>Icebreaker Map</span></span>
+  </header>
+
+  <main class="container narrow" id="page">
     <section id="join-view">
-      <h1>Say hi 👋</h1>
+      <div class="join-head">
+        <h1>Add yourself to the map</h1>
+        <p class="lead">Takes about 10 seconds. No app, no account.</p>
+      </div>
 
       <form id="join" class="card">
-        <label for="name">Your name</label>
-        <input id="name" type="text" maxlength="40" autocomplete="given-name" required>
+        <div class="question-banner">
+          <p class="eyebrow">The question</p>
+          <strong id="question"></strong>
+        </div>
 
-        <label id="answer-label" for="answer">Your answer</label>
-        <input id="answer" type="text" maxlength="140" autocomplete="off">
+        <label for="answer">Your answer</label>
+        <input id="answer" type="text" maxlength="140" autocomplete="off" placeholder="Type a short answer">
+
+        <label for="name">Your name</label>
+        <input id="name" type="text" maxlength="40" autocomplete="given-name" placeholder="First name is great" required>
 
         <label for="zip">Your ZIP code</label>
         <input id="zip" type="text" inputmode="numeric" pattern="[0-9]{5}(-[0-9]{4})?"
                maxlength="10" autocomplete="postal-code" placeholder="e.g. 78701" required>
+        <p class="hint">Only used to place your pin. US ZIP codes only.</p>
 
-        <p class="consent">
-          We use your ZIP only to place a pin on the map. It isn't saved, and the pin is
-          rounded to about 10&nbsp;km (city level). Everything is deleted when the host
-          ends the session, or after 12 hours.
-        </p>
-
-        <button class="block" type="submit">Put me on the map</button>
+        <button class="btn block" type="submit">Put me on the map</button>
         <p id="status" class="status" role="status"></p>
+
+        <p class="note">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 1.5l5 2v4c0 3-2.1 5.4-5 6.5-2.9-1.1-5-3.5-5-6.5v-4l5-2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
+          <span>Your ZIP isn't saved, and your pin is rounded to about 10&nbsp;km (city level). Everything is deleted when the host ends the session, or after 12 hours.</span>
+        </p>
       </form>
     </section>
 
     <section id="done-view" hidden>
-      <h1>You're on the map 🎉</h1>
-      <p class="muted"><span id="count">0</span> here so far. Tap a pin to see who it is.</p>
-      <div id="map" class="map map-small"></div>
-      <p><button id="leave" class="secondary" type="button">Remove me from the map</button></p>
-      <p id="done-status" class="status" role="status"></p>
+      <div class="done-head">
+        <h1>You're on the map! 🎉</h1>
+        <p class="lead" id="placed"></p>
+      </div>
+      <div class="map-wrap"><div id="map" class="map map-small"></div></div>
+      <div class="done-actions">
+        <button id="leave" class="btn ghost" type="button">Remove me from the map</button>
+        <p id="done-status" class="status" role="status"></p>
+      </div>
     </section>
   </main>
+  <div id="confetti" class="confetti" aria-hidden="true"></div>
+
   <script src="/vendor/leaflet/leaflet.js"></script>
   <script src="/map.js"></script>
   <script src="/join.js"></script>

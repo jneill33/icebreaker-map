@@ -3,22 +3,85 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Icebreaker Map</title>
+  <meta name="theme-color" content="#6366f1">
+  <meta name="description" content="Show a QR code, let everyone answer one fun question, and watch your room appear on a live map.">
+  <title>Icebreaker Map: see where your room is from</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-  <main class="wrap">
-    <h1>Icebreaker Map</h1>
-    <p class="muted">Show a QR code. Everyone scans it, says hi, and appears on a shared map, at city-level accuracy only.</p>
+  <header class="topbar">
+    <a class="brand" href="/"><img src="/logo.svg" alt="" width="32" height="32"><span>Icebreaker Map</span></a>
+    <span class="badge">Free &middot; No sign-up</span>
+  </header>
 
-    <form id="create" class="card">
-      <label for="question">Icebreaker question</label>
-      <input id="question" type="text" maxlength="140" autocomplete="off"
-             placeholder="Where's home, and what do you love about it?">
-      <button class="block" type="submit">Start a session</button>
-      <p id="status" class="status" role="status"></p>
-    </form>
+  <main>
+    <section class="container hero">
+      <div class="hero-copy">
+        <p class="eyebrow">For classes, workshops &amp; team meetings</p>
+        <h1>See where your room is <span class="grad-text">from</span>, in seconds.</h1>
+        <p class="lead">Show a QR code. Everyone answers one fun question and drops a pin. Watch the map fill up live, then click any pin to read the answer.</p>
+        <ul class="ticks">
+          <li>No app, no account for anyone</li>
+          <li>Takes about 10 seconds to join</li>
+          <li>Pins are city-level, never exact</li>
+        </ul>
+      </div>
+
+      <form id="create" class="card form-card">
+        <h2>Start a session</h2>
+        <p class="muted">Pick a question for your group to answer.</p>
+        <div id="chips" class="chips" role="radiogroup" aria-label="Suggested questions"></div>
+
+        <label for="question">Or write your own</label>
+        <input id="question" type="text" maxlength="140" autocomplete="off" placeholder="Ask anything fun and easy to answer">
+        <p class="hint">Tip: short, low-stakes questions get the most answers. Location comes from ZIP codes, so no need to ask where people live.</p>
+
+        <button class="btn block" type="submit">Start session &rarr;</button>
+        <p id="status" class="status" role="status"></p>
+      </form>
+    </section>
+
+    <section class="container section" id="how">
+      <div class="section-head">
+        <p class="eyebrow">How it works</p>
+        <h2>Three steps, zero setup</h2>
+        <p>You run the session from this screen. Your group only needs a phone.</p>
+      </div>
+      <div class="grid three">
+        <article class="card step">
+          <div class="num">1</div>
+          <h3>Pick a question</h3>
+          <p>Choose a suggestion or write your own. It's the one thing everyone answers when they join.</p>
+        </article>
+        <article class="card step">
+          <div class="num">2</div>
+          <h3>Show the QR code</h3>
+          <p>Put it on the projector or share the link. Guests scan it with their phone camera, then enter a name, an answer and their ZIP code.</p>
+        </article>
+        <article class="card step">
+          <div class="num">3</div>
+          <h3>Watch the map fill up</h3>
+          <p>Each person appears as a pin the moment they join. Click a pin to see their name and answer, and use it to start conversations.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="container section" id="privacy">
+      <div class="section-head">
+        <p class="eyebrow">Privacy built in</p>
+        <h2>Friendly to the room, careful with data</h2>
+      </div>
+      <div class="grid four">
+        <article class="card fact"><div class="ico">📍</div><h3>City-level pins</h3><p>Locations are rounded to about 7 miles, so nobody's exact position is ever shown.</p></article>
+        <article class="card fact"><div class="ico">🔒</div><h3>ZIPs aren't saved</h3><p>A ZIP code is used once to place the pin, then thrown away.</p></article>
+        <article class="card fact"><div class="ico">🙋</div><h3>Guests stay in control</h3><p>Anyone can remove their own pin and answer at any time.</p></article>
+        <article class="card fact"><div class="ico">🧹</div><h3>Auto-cleanup</h3><p>End the session to delete everything, or it clears itself after 12 hours.</p></article>
+      </div>
+    </section>
   </main>
+
+  <footer class="footer">Icebreaker Map &middot; Map data &copy; OpenStreetMap contributors</footer>
   <script src="/index.js"></script>
 </body>
 </html>

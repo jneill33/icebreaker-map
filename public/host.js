@@ -11,38 +11,54 @@ function setStatus(text, kind = '') {
 
 function renderPeople(people) {
   $('count').textContent = people.length;
+  $('empty').hidden = people.length > 0;
+  $('people-empty').hidden = people.length > 0;
   const list = $('people');
   list.replaceChildren();
   for (const p of [...people].reverse()) {
     const li = document.createElement('li');
+    const avatar = document.createElement('div');
+    avatar.className = 'avatar';
+    avatar.style.setProperty('--pin', Avatar.color(p.id));
+    avatar.textContent = Avatar.initial(p.name);
+    const text = document.createElement('div');
     const who = document.createElement('div');
     who.className = 'who';
     who.textContent = p.name;
-    li.appendChild(who);
+    text.appendChild(who);
     if (p.answer) {
       const said = document.createElement('div');
       said.className = 'said';
       said.textContent = p.answer;
-      li.appendChild(said);
+      text.appendChild(said);
     }
+    li.append(avatar, text);
     list.appendChild(li);
   }
 }
 
 function showEnded() {
+  document.body.className = '';
   document.body.replaceChildren();
   const wrap = document.createElement('main');
-  wrap.className = 'wrap';
+  wrap.className = 'container narrow';
+  wrap.style.paddingTop = '12vh';
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.style.textAlign = 'center';
   const h = document.createElement('h1');
+  h.style.fontSize = '2rem';
   h.textContent = 'Session ended';
   const p = document.createElement('p');
   p.className = 'muted';
-  p.textContent = 'All locations for this session have been deleted.';
+  p.style.margin = '10px 0 20px';
+  p.textContent = 'All names, answers and locations for this session have been deleted.';
   const a = document.createElement('a');
   a.className = 'btn';
   a.href = '/';
   a.textContent = 'Start a new session';
-  wrap.append(h, p, a);
+  card.append(h, p, a);
+  wrap.appendChild(card);
   document.body.appendChild(wrap);
 }
 
@@ -52,7 +68,7 @@ async function init() {
   const session = await res.json();
 
   $('question').textContent = session.question;
-  $('join-url').textContent = session.joinUrl;
+  $('join-url').textContent = session.joinUrl.replace(/^https?:\/\//, '');
   $('qr').src = `/api/sessions/${encodeURIComponent(sessionId)}/qr.svg`;
 
   $('copy').addEventListener('click', async () => {
@@ -67,7 +83,7 @@ async function init() {
   if (localStorage.getItem(tokenKey)) {
     $('end').hidden = false;
     $('end').addEventListener('click', async () => {
-      if (!confirm('End the session and delete everyone\'s location?')) return;
+      if (!confirm("End the session and delete everyone's pins and answers?")) return;
       const r = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}`, {
         method: 'DELETE',
         headers: { 'x-host-token': localStorage.getItem(tokenKey) },

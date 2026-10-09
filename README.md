@@ -5,10 +5,10 @@ answer to the host's question, and appear on a shared live map.
 
 ## How it works
 
-- **Host** (`/`): create a session, then show `host.html`: a QR code, the join link, a live map and a list of who has joined.
+- **Host** (`/`): pick a suggested icebreaker question (or write your own) and start a session, then show `host.html`: a QR code, the join link, a live map and a list of who has joined.
 - **Participant** (`join.html?s=<id>`): enter a name, an answer and a US ZIP code, then see everyone on the map. No device-location permission is needed.
 - **Live updates** use Server-Sent Events, so the host map updates as people join or leave.
-- **Map**: [Leaflet](https://leafletjs.com) with OpenStreetMap tiles (no API key).
+- **Map**: [Leaflet](https://leafletjs.com) with OpenStreetMap tiles (no API key). Each person is a colored initial pin; new joiners pop in with a pulse.
 
 ## Privacy
 
