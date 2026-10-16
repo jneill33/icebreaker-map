@@ -1,10 +1,9 @@
 'use strict';
 
-// Live chart tab for multiple-choice sessions. Counts come from the same event stream the
-// map uses; the renderers below only draw, so a new chart type is one more function.
+// Live chart for multiple-choice sessions, shown as a tab on the host page. Counts come
+// from the same event stream the map uses; the renderers below only draw, so a new chart
+// type is one more function.
 (function () {
-  const sessionId = new URLSearchParams(location.search).get('s') || '';
-  const $ = (id) => document.getElementById(id);
   const SVG_NS = 'http://www.w3.org/2000/svg';
   const COLORS = ['#6366f1', '#ec4899', '#f59e0b', '#10b981', '#06b6d4', '#8b5cf6', '#ef4444', '#14b8a6', '#84cc16', '#f97316', '#3b82f6', '#a855f7'];
 
@@ -65,43 +64,46 @@
 
   const RENDERERS = { bar: drawBar, pie: drawPie };
 
-  function renderLegend(rows, total, showSwatch) {
-    const list = $('legend');
-    list.replaceChildren();
-    for (const r of rows) {
-      const li = document.createElement('li');
-      if (showSwatch) {
-        const dot = document.createElement('i');
-        dot.style.background = r.color;
-        li.appendChild(dot);
-      }
-      li.append(`${r.label}: ${r.count} (${pct(r.count, total)}%)`);
-      list.appendChild(li);
-    }
-  }
+  const el = (tag, className) => {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    return node;
+  };
 
-  async function init() {
-    const res = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}`);
-    if (!res.ok) return showEnded('Session not found', 'It may have ended or the link is wrong.');
-    const session = await res.json();
-    if (session.answerType !== 'choice') {
-      return showEnded('No chart for this session', 'Charts are available for multiple-choice questions.');
-    }
-    $('question').textContent = session.question;
+  // Draws the live chart for `session` (the object from GET /api/sessions/:id) inside
+  // `container`. Returns { close } to stop listening.
+  window.LiveChart = function LiveChart(container, session, sessionId) {
     const draw = RENDERERS[session.chart] || drawBar;
+    const isPie = session.chart === 'pie';
     const answers = new Map(); // participant id -> option
+
+    const totalLine = el('p', 'muted chart-total');
+    const box = el('div', 'chart-box');
+    box.setAttribute('role', 'img');
+    box.setAttribute('aria-label', 'Chart of responses');
+    const legend = el('ul', 'legend');
+    legend.hidden = !isPie;
+    const empty = el('p', 'muted chart-empty');
+    empty.textContent = 'Waiting for the first response...';
+    container.replaceChildren(totalLine, box, legend, empty);
 
     function render() {
       const counts = new Map(session.options.map((o) => [o, 0]));
       for (const a of answers.values()) if (counts.has(a)) counts.set(a, counts.get(a) + 1);
       const rows = session.options.map((label, i) => ({ label, count: counts.get(label), color: COLORS[i % COLORS.length] }));
       const total = answers.size;
-      $('total').textContent = total;
-      $('total-label').textContent = total === 1 ? 'response' : 'responses';
-      $('empty').hidden = total > 0;
-      $('chart').replaceChildren(draw(rows, total));
-      renderLegend(rows, total, session.chart === 'pie');
-      $('legend').hidden = session.chart !== 'pie';
+      totalLine.textContent = `${total} ${total === 1 ? 'response' : 'responses'}`;
+      empty.hidden = total > 0;
+      box.replaceChildren(draw(rows, total));
+      if (isPie) {
+        legend.replaceChildren(...rows.map((r) => {
+          const li = el('li');
+          const dot = el('i');
+          dot.style.background = r.color;
+          li.append(dot, `${r.label}: ${r.count} (${pct(r.count, total)}%)`);
+          return li;
+        }));
+      }
     }
 
     const source = new EventSource(`/api/sessions/${encodeURIComponent(sessionId)}/events`);
@@ -112,19 +114,9 @@
     });
     source.addEventListener('join', (e) => { const p = JSON.parse(e.data); answers.set(p.id, p.answer); render(); });
     source.addEventListener('leave', (e) => { answers.delete(JSON.parse(e.data).id); render(); });
-    source.addEventListener('end', () => { source.close(); showEnded('Session ended', 'All responses have been deleted.'); });
-  }
+    source.addEventListener('end', () => source.close());
+    render();
 
-  function showEnded(title, text) {
-    const main = document.querySelector('main');
-    main.replaceChildren();
-    const h = document.createElement('h1');
-    h.textContent = title;
-    const p = document.createElement('p');
-    p.className = 'muted';
-    p.textContent = text;
-    main.append(h, p);
-  }
-
-  init();
+    return { close: () => source.close() };
+  };
 })();

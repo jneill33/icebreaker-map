@@ -159,6 +159,13 @@ textarea {
   border-radius: 12px;
   resize: vertical;
 }
+input[type="text"][aria-invalid="true"],
+textarea[aria-invalid="true"] {
+  border-color: var(--danger);
+  background: #fff8f9;
+  box-shadow: 0 0 0 4px rgba(229, 56, 79, 0.14);
+}
+
 textarea:focus {
   outline: none;
   background: #fff;
@@ -264,7 +271,8 @@ button { font: inherit; }
   transition: all 0.15s;
 }
 .chip:hover { border-color: var(--brand); color: var(--brand); transform: translateY(-1px); }
-.chip[aria-checked="true"] {
+.chip[aria-checked="true"],
+.chip[aria-selected="true"] {
   color: #fff;
   border-color: transparent;
   background: var(--grad);
@@ -483,8 +491,12 @@ body.host-page { height: 100vh; display: flex; flex-direction: column; overflow:
 
 /* ---------- Live chart tab ---------- */
 .chips-inline { max-height: none; margin-top: 0; }
-.chart-main { padding-top: 32px; padding-bottom: 48px; }
-.chart-question { margin: 4px 0 6px; font-size: clamp(1.6rem, 4vw, 2.6rem); font-weight: 800; }
+.stage { min-height: 0; display: flex; flex-direction: column; gap: 10px; }
+.stage .map-wrap { flex: 1; }
+.view-tabs { display: flex; gap: 8px; }
+.view-tabs .chip { padding: 9px 18px; font-size: 0.92rem; }
+.chart-panel { flex: 1; min-height: 0; overflow: auto; padding: 24px 28px; }
+.chart-total { margin: 0; font-weight: 700; font-size: 1.05rem; }
 .chart-box { margin-top: 18px; }
 .chart-svg { width: 100%; height: auto; display: block; }
 .chart-svg-pie { max-width: 420px; margin: 0 auto; }

@@ -31,7 +31,6 @@
       <section class="card question-card">
         <p class="eyebrow">Today's question</p>
         <h2 id="question"></h2>
-        <a id="open-chart" class="btn ghost small" href="#" target="_blank" rel="noopener" hidden style="margin-top:12px">Open live chart in new tab &#8599;</a>
       </section>
 
       <section class="card">
@@ -54,19 +53,28 @@
       <button id="end" class="btn danger" type="button" hidden>End session &amp; delete data</button>
     </aside>
 
-    <section class="map-wrap">
-      <div id="map" class="map"></div>
-      <div class="map-pill"><b id="count">0</b> on the map</div>
-      <div id="empty" class="map-empty">
-        <div class="pulse">📍</div>
-        <h3>Waiting for the first person…</h3>
-        <p>Scan the QR code to be the first pin.</p>
+    <div class="stage">
+      <div id="view-tabs" class="view-tabs" role="tablist" aria-label="Results view" hidden>
+        <button type="button" class="chip" role="tab" id="tab-map" data-view="map" aria-selected="true" aria-controls="map-view">Map</button>
+        <button type="button" class="chip" role="tab" id="tab-chart" data-view="chart" aria-selected="false" aria-controls="chart-view">Chart</button>
       </div>
-    </section>
+      <section class="map-wrap" id="map-view">
+        <div id="map" class="map"></div>
+        <div class="map-pill"><b id="count">0</b> on the map</div>
+        <div id="empty" class="map-empty">
+          <div class="pulse">📍</div>
+          <h3>Waiting for the first person…</h3>
+          <p>Scan the QR code to be the first pin.</p>
+        </div>
+      </section>
+
+      <section id="chart-view" class="card chart-panel" role="tabpanel" aria-labelledby="tab-chart" hidden></section>
+    </div>
   </main>
 
   <script src="/vendor/leaflet/leaflet.js"></script>
   <script src="/map.js"></script>
+  <script src="/chart.js"></script>
   <script src="/host.js"></script>
 </body>
 </html>
