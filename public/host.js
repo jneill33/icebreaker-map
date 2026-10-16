@@ -68,10 +68,6 @@ async function init() {
   const session = await res.json();
 
   $('question').textContent = session.question;
-  if (session.answerType === 'choice') {
-    $('open-chart').href = `/chart.html?s=${encodeURIComponent(sessionId)}`;
-    $('open-chart').hidden = false;
-  }
   $('join-url').textContent = session.joinUrl.replace(/^https?:\/\//, '');
   $('qr').src = `/api/sessions/${encodeURIComponent(sessionId)}/qr.svg`;
 
@@ -97,7 +93,23 @@ async function init() {
     });
   }
 
-  LiveMap($('map'), sessionId, { onChange: renderPeople, onEnd: showEnded });
+  const live = LiveMap($('map'), sessionId, { onChange: renderPeople, onEnd: showEnded });
+
+  // Multiple-choice sessions get a Chart tab beside the Map, so the host can flip between
+  // them without leaving the page.
+  if (session.answerType === 'choice') {
+    LiveChart($('chart-view'), session, sessionId);
+    $('view-tabs').hidden = false;
+    $('view-tabs').addEventListener('click', (e) => {
+      const tab = e.target.closest('[data-view]');
+      if (!tab) return;
+      const showMap = tab.dataset.view === 'map';
+      $('map-view').hidden = !showMap;
+      $('chart-view').hidden = showMap;
+      for (const t of $('view-tabs').children) t.setAttribute('aria-selected', String(t === tab));
+      if (showMap) live.map.invalidateSize(); // Leaflet mis-sizes while its container is hidden
+    });
+  }
 }
 
 init();

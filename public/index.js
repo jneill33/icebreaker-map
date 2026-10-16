@@ -38,11 +38,17 @@ for (const s of SUGGESTIONS) {
   chip.setAttribute('role', 'radio');
   chip.dataset.text = s.text;
   chip.textContent = `${s.emoji} ${s.text.replace(/[?]$/, '')}`;
-  chip.addEventListener('click', () => { input.value = s.text; syncChips(); });
+  chip.addEventListener('click', () => { input.value = s.text; input.removeAttribute('aria-invalid'); syncChips(); });
   chips.appendChild(chip);
 }
 
 input.addEventListener('input', syncChips);
+
+// A red outline marks a required field until the host starts fixing it.
+for (const id of ['question', 'options']) {
+  const field = document.getElementById(id);
+  field.addEventListener('input', () => field.removeAttribute('aria-invalid'));
+}
 // The example shows greyed out as a placeholder. It is never submitted unless the host picks it.
 input.placeholder = SUGGESTIONS[0].text;
 syncChips();
@@ -69,16 +75,21 @@ bindRadios('chart-types', 'chart', 'chart');
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
   const button = form.querySelector('button[type="submit"]');
-  const fail = (message, field) => {
-    status.className = 'status error';
-    status.textContent = message;
-    field.focus();
-  };
-  if (!input.value.trim()) return fail('Please pick or write a question first.', input);
   const optionsField = document.getElementById('options');
+  const problems = [];
+  if (!input.value.trim()) problems.push([input, 'Please pick or write a question first.']);
   if (choices.format === 'choice') {
     const labels = new Set(optionsField.value.split('\n').map((o) => o.trim().toLowerCase()).filter(Boolean));
-    if (labels.size < 2) return fail('Multiple choice needs at least two different options, one per line.', optionsField);
+    if (labels.size < 2) problems.push([optionsField, 'Multiple choice needs at least two different options, one per line.']);
+  }
+  for (const field of [input, optionsField]) {
+    field.setAttribute('aria-invalid', String(problems.some(([f]) => f === field)));
+  }
+  if (problems.length) {
+    status.className = 'status error';
+    status.textContent = problems[0][1];
+    problems[0][0].focus();
+    return;
   }
   button.disabled = true;
   status.className = 'status';
