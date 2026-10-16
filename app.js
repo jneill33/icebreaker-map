@@ -6,7 +6,6 @@ const express = require('express');
 const QRCode = require('qrcode');
 
 const MAX_PARTICIPANTS = 300;
-const DEFAULT_QUESTION = "What's your favorite food?";
 
 const clean = (value, max) =>
   String(value ?? '').replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, max);
@@ -150,12 +149,14 @@ function createApp({
 
   // --- API ---
   app.post('/api/sessions', rateLimit(30, 60 * 60 * 1000), (req, res) => {
+    const question = clean(req.body?.question, 140);
+    if (!question) return res.status(400).json({ error: 'Please enter a question.' });
     const config = parseAnswerConfig(req.body);
     if (config.error) return res.status(400).json({ error: config.error });
     const id = randomId(6);
     const session = {
       id,
-      question: clean(req.body?.question, 140) || DEFAULT_QUESTION,
+      question,
       answerType: config.answerType,
       options: config.options,
       chart: config.chart,

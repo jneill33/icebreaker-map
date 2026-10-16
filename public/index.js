@@ -43,7 +43,8 @@ for (const s of SUGGESTIONS) {
 }
 
 input.addEventListener('input', syncChips);
-input.value = SUGGESTIONS[0].text; // start with a good default so one click is enough
+// The example shows greyed out as a placeholder. It is never submitted unless the host picks it.
+input.placeholder = SUGGESTIONS[0].text;
 syncChips();
 
 // Answer format and chart style are two small radio groups built from the same chips.
@@ -68,6 +69,17 @@ bindRadios('chart-types', 'chart', 'chart');
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
   const button = form.querySelector('button[type="submit"]');
+  const fail = (message, field) => {
+    status.className = 'status error';
+    status.textContent = message;
+    field.focus();
+  };
+  if (!input.value.trim()) return fail('Please pick or write a question first.', input);
+  const optionsField = document.getElementById('options');
+  if (choices.format === 'choice') {
+    const labels = new Set(optionsField.value.split('\n').map((o) => o.trim().toLowerCase()).filter(Boolean));
+    if (labels.size < 2) return fail('Multiple choice needs at least two different options, one per line.', optionsField);
+  }
   button.disabled = true;
   status.className = 'status';
   status.textContent = 'Creating session...';
@@ -78,7 +90,7 @@ form.addEventListener('submit', async (e) => {
       body: JSON.stringify({
         question: input.value,
         answerType: choices.format,
-        options: document.getElementById('options').value.split('\n'),
+        options: optionsField.value.split('\n'),
         chart: choices.chart,
       }),
     });
