@@ -35,7 +35,7 @@ const post = (url, body, headers = {}) => fetch(base + url, {
   method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify(body),
 });
 
-async function newSession(question) {
+async function newSession(question = 'Test question?') {
   const res = await post('/api/sessions', { question });
   assert.equal(res.status, 201);
   return res.json();
@@ -109,6 +109,57 @@ test('ZIP lookups are cached', async () => {
   const before = lookups;
   await join(s.id, { name: 'b', zip: '10001' });
   assert.equal(lookups, before);
+});
+
+test('sessions default to free text with no options or chart', async () => {
+  const s = await newSession('Anything?');
+  assert.equal(s.answerType, 'text');
+  assert.deepEqual(s.options, []);
+  assert.equal(s.chart, null);
+});
+
+test('multiple-choice sessions clean and de-duplicate options and default the chart to bar', async () => {
+  const res = await post('/api/sessions', {
+    question: 'Burgers or tacos?', answerType: 'choice', options: ['  Burgers ', 'Tacos', 'burgers', '', 7], chart: 'bogus',
+  });
+  assert.equal(res.status, 201);
+  const s = await res.json();
+  assert.equal(s.answerType, 'choice');
+  assert.deepEqual(s.options, ['Burgers', 'Tacos', '7']);
+  assert.equal(s.chart, 'bar');
+  const info = await (await fetch(`${base}/api/sessions/${s.id}`)).json();
+  assert.deepEqual(info.options, s.options);
+});
+
+test('a question is required', async () => {
+  assert.equal((await post('/api/sessions', {})).status, 400);
+  assert.equal((await post('/api/sessions', { question: '   ' })).status, 400);
+  const res = await post('/api/sessions', { question: '\u0007' });
+  assert.equal(res.status, 400);
+  assert.match((await res.json()).error, /question/);
+});
+
+test('multiple-choice sessions need 2 to 12 options', async () => {
+  const few = await post('/api/sessions', { question: 'Q?', answerType: 'choice', options: ['Only one'] });
+  assert.equal(few.status, 400);
+  const many = await post('/api/sessions', {
+    question: 'Q?', answerType: 'choice', options: Array.from({ length: 13 }, (_, i) => `Option ${i}`),
+  });
+  assert.equal(many.status, 400);
+  const notList = await post('/api/sessions', { question: 'Q?', answerType: 'choice', options: 'A\nB' });
+  assert.equal(notList.status, 400);
+});
+
+test('choice sessions only accept listed options and store the canonical label', async () => {
+  const res = await post('/api/sessions', { question: 'Q?', answerType: 'choice', options: ['Tacos', 'Burgers'], chart: 'pie' });
+  const s = await res.json();
+  assert.equal(s.chart, 'pie');
+  assert.equal((await join(s.id, { name: 'a', zip: '78701', answer: 'Pizza' })).status, 400);
+  assert.equal((await join(s.id, { name: 'a', zip: '78701' })).status, 400);
+  assert.equal((await join(s.id, { name: 'a', zip: '78701', answer: 'tacos' })).status, 201);
+  const stored = [...ctx.sessions.get(s.id).participants.values()];
+  assert.equal(stored.length, 1);
+  assert.equal(stored[0].answer, 'Tacos');
 });
 
 test('unknown sessions return 404', async () => {

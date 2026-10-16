@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#6366f1">
+  <title>Icebreaker Map: Live chart</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body class="chart-page">
+  <header class="topbar">
+    <a class="brand" href="/"><img src="/logo.svg" alt="" width="32" height="32"><span>Icebreaker Map</span></a>
+    <span class="live"><i></i>Live</span>
+  </header>
+
+  <main class="container chart-main">
+    <p class="eyebrow">Live results</p>
+    <h1 id="question" class="chart-question"></h1>
+    <p class="muted"><b id="total">0</b> <span id="total-label">responses</span></p>
+    <div id="chart" class="chart-box" role="img" aria-label="Chart of responses"></div>
+    <ul id="legend" class="legend"></ul>
+    <p id="empty" class="muted chart-empty">Waiting for the first response...</p>
+  </main>
+
+  <script src="/chart.js"></script>
+</body>
+</html>

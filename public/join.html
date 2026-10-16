@@ -27,8 +27,14 @@
           <strong id="question"></strong>
         </div>
 
-        <label for="answer">Your answer</label>
-        <input id="answer" type="text" maxlength="140" autocomplete="off" placeholder="Type a short answer">
+        <div id="answer-text">
+          <label for="answer">Your answer</label>
+          <input id="answer" type="text" maxlength="140" autocomplete="off" placeholder="Type a short answer">
+        </div>
+        <div id="answer-choice" hidden>
+          <label id="choice-label">Pick one</label>
+          <div id="choices" class="chips" role="radiogroup" aria-labelledby="choice-label"></div>
+        </div>
 
         <label for="name">Your name</label>
         <input id="name" type="text" maxlength="40" autocomplete="given-name" placeholder="First name is great" required>

@@ -43,12 +43,43 @@ for (const s of SUGGESTIONS) {
 }
 
 input.addEventListener('input', syncChips);
-input.value = SUGGESTIONS[0].text; // start with a good default so one click is enough
+// The example shows greyed out as a placeholder. It is never submitted unless the host picks it.
+input.placeholder = SUGGESTIONS[0].text;
 syncChips();
+
+// Answer format and chart style are two small radio groups built from the same chips.
+const choices = { format: 'text', chart: 'bar' };
+
+function bindRadios(groupId, key, attr, onSelect) {
+  const group = document.getElementById(groupId);
+  group.addEventListener('click', (e) => {
+    const chip = e.target.closest('.chip');
+    if (!chip) return;
+    choices[key] = chip.dataset[attr];
+    for (const c of group.children) c.setAttribute('aria-checked', String(c === chip));
+    if (onSelect) onSelect();
+  });
+}
+
+bindRadios('formats', 'format', 'format', () => {
+  document.getElementById('choice-settings').hidden = choices.format !== 'choice';
+});
+bindRadios('chart-types', 'chart', 'chart');
 
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
   const button = form.querySelector('button[type="submit"]');
+  const fail = (message, field) => {
+    status.className = 'status error';
+    status.textContent = message;
+    field.focus();
+  };
+  if (!input.value.trim()) return fail('Please pick or write a question first.', input);
+  const optionsField = document.getElementById('options');
+  if (choices.format === 'choice') {
+    const labels = new Set(optionsField.value.split('\n').map((o) => o.trim().toLowerCase()).filter(Boolean));
+    if (labels.size < 2) return fail('Multiple choice needs at least two different options, one per line.', optionsField);
+  }
   button.disabled = true;
   status.className = 'status';
   status.textContent = 'Creating session...';
@@ -56,7 +87,12 @@ form.addEventListener('submit', async (e) => {
     const res = await fetch('/api/sessions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question: input.value }),
+      body: JSON.stringify({
+        question: input.value,
+        answerType: choices.format,
+        options: optionsField.value.split('\n'),
+        chart: choices.chart,
+      }),
     });
     if (!res.ok) throw new Error((await res.json()).error || 'Could not create session.');
     const session = await res.json();

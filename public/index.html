@@ -37,6 +37,24 @@
         <input id="question" type="text" maxlength="140" autocomplete="off" placeholder="Ask anything fun and easy to answer">
         <p class="hint">Tip: short, low-stakes questions get the most answers. Location comes from ZIP codes, so no need to ask where people live.</p>
 
+        <label id="format-label">How should people answer?</label>
+        <div id="formats" class="chips chips-inline" role="radiogroup" aria-labelledby="format-label">
+          <button type="button" class="chip" role="radio" data-format="text" aria-checked="true">Free text</button>
+          <button type="button" class="chip" role="radio" data-format="choice" aria-checked="false">Multiple choice</button>
+        </div>
+
+        <div id="choice-settings" hidden>
+          <label for="options">Options (one per line, 2 to 12)</label>
+          <textarea id="options" rows="4" maxlength="600" placeholder="Hamburgers&#10;Tacos"></textarea>
+
+          <label id="chart-label">Chart style</label>
+          <div id="chart-types" class="chips chips-inline" role="radiogroup" aria-labelledby="chart-label">
+            <button type="button" class="chip" role="radio" data-chart="bar" aria-checked="true">Bar</button>
+            <button type="button" class="chip" role="radio" data-chart="pie" aria-checked="false">Pie</button>
+          </div>
+          <p class="hint">Multiple-choice sessions get a live chart that opens in its own tab from the host screen.</p>
+        </div>
+
         <button class="btn block" type="submit">Start session &rarr;</button>
         <p id="status" class="status" role="status"></p>
       </form>
