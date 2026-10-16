@@ -17,6 +17,28 @@ const roundCoord = (v) => Math.round(v * 10) / 10 + 0;
 
 const randomId = (bytes) => crypto.randomBytes(bytes).toString('base64url');
 
+const CHART_TYPES = ['bar', 'pie'];
+const MIN_OPTIONS = 2;
+const MAX_OPTIONS = 12;
+
+// Normalizes the host-supplied answer settings. The client is never trusted: option
+// labels are cleaned and de-duplicated, and the chart type must be on the allowlist.
+// Returns { error } or { answerType, options, chart }.
+function parseAnswerConfig(body) {
+  if (body?.answerType !== 'choice') return { answerType: 'text', options: [], chart: null };
+  const raw = Array.isArray(body.options) ? body.options : [];
+  const options = [];
+  for (const item of raw) {
+    const label = clean(item, 40);
+    if (label && !options.some((o) => o.toLowerCase() === label.toLowerCase())) options.push(label);
+  }
+  if (options.length < MIN_OPTIONS || options.length > MAX_OPTIONS) {
+    return { error: `Add between ${MIN_OPTIONS} and ${MAX_OPTIONS} different options.` };
+  }
+  const chart = CHART_TYPES.includes(body.chart) ? body.chart : 'bar';
+  return { answerType: 'choice', options, chart };
+}
+
 function safeEqual(a, b) {
   const x = Buffer.from(String(a ?? ''));
   const y = Buffer.from(String(b ?? ''));
@@ -128,10 +150,15 @@ function createApp({
 
   // --- API ---
   app.post('/api/sessions', rateLimit(30, 60 * 60 * 1000), (req, res) => {
+    const config = parseAnswerConfig(req.body);
+    if (config.error) return res.status(400).json({ error: config.error });
     const id = randomId(6);
     const session = {
       id,
       question: clean(req.body?.question, 140) || DEFAULT_QUESTION,
+      answerType: config.answerType,
+      options: config.options,
+      chart: config.chart,
       hostToken: randomId(18),
       expiresAt: Date.now() + ttlMs,
       participants: new Map(),
@@ -140,6 +167,7 @@ function createApp({
     sessions.set(id, session);
     res.status(201).json({
       id, hostToken: session.hostToken, question: session.question,
+      answerType: session.answerType, options: session.options, chart: session.chart,
       expiresAt: session.expiresAt, joinUrl: joinUrl(req, id),
     });
   });
@@ -148,6 +176,7 @@ function createApp({
     const s = req.session;
     res.json({
       id: s.id, question: s.question, count: s.participants.size,
+      answerType: s.answerType, options: s.options, chart: s.chart,
       expiresAt: s.expiresAt, joinUrl: joinUrl(req, s.id),
     });
   });
@@ -170,6 +199,14 @@ function createApp({
     if (!zipMatch) return res.status(400).json({ error: 'Enter a 5-digit US ZIP code.' });
     const code = zipMatch[1];
 
+    // Multiple-choice sessions only accept one of the host's options (stored canonically).
+    let cleanAnswer = clean(answer, 140);
+    if (s.answerType === 'choice') {
+      const match = s.options.find((o) => o.toLowerCase() === cleanAnswer.toLowerCase());
+      if (!match) return res.status(400).json({ error: 'Please pick one of the options.' });
+      cleanAnswer = match;
+    }
+
     if (!zipCache.has(code)) {
       try {
         zipCache.set(code, await lookupZip(code));
@@ -187,7 +224,7 @@ function createApp({
     }
     // The ZIP itself is never stored; only the rounded, city-level coordinates are.
     const p = {
-      id: randomId(6), key: randomId(12), name: cleanName, answer: clean(answer, 140),
+      id: randomId(6), key: randomId(12), name: cleanName, answer: cleanAnswer,
       lat: roundCoord(place.lat), lng: roundCoord(place.lng),
     };
     s.participants.set(p.id, p);

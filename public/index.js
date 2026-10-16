@@ -46,6 +46,25 @@ input.addEventListener('input', syncChips);
 input.value = SUGGESTIONS[0].text; // start with a good default so one click is enough
 syncChips();
 
+// Answer format and chart style are two small radio groups built from the same chips.
+const choices = { format: 'text', chart: 'bar' };
+
+function bindRadios(groupId, key, attr, onSelect) {
+  const group = document.getElementById(groupId);
+  group.addEventListener('click', (e) => {
+    const chip = e.target.closest('.chip');
+    if (!chip) return;
+    choices[key] = chip.dataset[attr];
+    for (const c of group.children) c.setAttribute('aria-checked', String(c === chip));
+    if (onSelect) onSelect();
+  });
+}
+
+bindRadios('formats', 'format', 'format', () => {
+  document.getElementById('choice-settings').hidden = choices.format !== 'choice';
+});
+bindRadios('chart-types', 'chart', 'chart');
+
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
   const button = form.querySelector('button[type="submit"]');
@@ -56,7 +75,12 @@ form.addEventListener('submit', async (e) => {
     const res = await fetch('/api/sessions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question: input.value }),
+      body: JSON.stringify({
+        question: input.value,
+        answerType: choices.format,
+        options: document.getElementById('options').value.split('\n'),
+        chart: choices.chart,
+      }),
     });
     if (!res.ok) throw new Error((await res.json()).error || 'Could not create session.');
     const session = await res.json();

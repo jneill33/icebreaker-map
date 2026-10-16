@@ -6,6 +6,7 @@ const api = (suffix = '') => `/api/sessions/${encodeURIComponent(sessionId)}${su
 const $ = (id) => document.getElementById(id);
 
 let me = null; // { id, key, place }
+let selectedChoice = ''; // the option picked on a multiple-choice session
 
 function setStatus(el, text, kind = '') {
   el.className = `status ${kind}`.trim();
@@ -62,6 +63,24 @@ async function init() {
   const session = await res.json();
   $('question').textContent = session.question;
 
+  if (session.answerType === 'choice') {
+    $('answer-text').hidden = true;
+    $('answer-choice').hidden = false;
+    for (const option of session.options) {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'chip';
+      chip.setAttribute('role', 'radio');
+      chip.setAttribute('aria-checked', 'false');
+      chip.textContent = option;
+      chip.addEventListener('click', () => {
+        selectedChoice = option;
+        for (const c of $('choices').children) c.setAttribute('aria-checked', String(c === chip));
+      });
+      $('choices').appendChild(chip);
+    }
+  }
+
   try { me = JSON.parse(localStorage.getItem(storeKey)); } catch (_) { me = null; }
   if (me) return showMap();
 
@@ -69,6 +88,9 @@ async function init() {
     e.preventDefault();
     const button = e.currentTarget.querySelector('button[type="submit"]');
     const status = $('status');
+    if (session.answerType === 'choice' && !selectedChoice) {
+      return setStatus(status, 'Please pick one of the options.', 'error');
+    }
     button.disabled = true;
     setStatus(status, 'Joining...');
     try {
@@ -77,7 +99,7 @@ async function init() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: $('name').value,
-          answer: $('answer').value,
+          answer: session.answerType === 'choice' ? selectedChoice : $('answer').value,
           zip: $('zip').value,
         }),
       });

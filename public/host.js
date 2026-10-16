@@ -68,6 +68,10 @@ async function init() {
   const session = await res.json();
 
   $('question').textContent = session.question;
+  if (session.answerType === 'choice') {
+    $('open-chart').href = `/chart.html?s=${encodeURIComponent(sessionId)}`;
+    $('open-chart').hidden = false;
+  }
   $('join-url').textContent = session.joinUrl.replace(/^https?:\/\//, '');
   $('qr').src = `/api/sessions/${encodeURIComponent(sessionId)}/qr.svg`;
 
